@@ -1,0 +1,60 @@
+body { font-family: Arial; padding: 10px; }
+input, button { width: 100%; margin: 5px 0; padding: 10px; }
+
+
+.topbar {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 10px;
+}
+
+
+.btn.small {
+padding: 6px 10px;
+font-size: 14px;
+}
+
+
+.btn.secondary {
+background: #444;
+}
+
+
+.result-row {
+border-bottom: 1px solid #ddd;
+padding: 10px 0;
+}
+
+
+.modal {
+display: none;
+position: fixed;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.5);
+}
+
+
+.modal-content {
+background: #fff;
+margin: 10% auto;
+padding: 15px;
+max-width: 420px;
+border-radius: 8px;
+}
+
+
+.close {
+float: right;
+font-size: 22px;
+cursor: pointer;
+}
+
+
+.preview {
+max-width: 100%;
+margin: 5px 0;
+}

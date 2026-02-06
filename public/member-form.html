@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Add Member</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<form method="POST" action="/add-member" enctype="multipart/form-data" class="card">
+
+  <h2>Organization Details</h2>
+
+  <input type="text" name="organizationName" placeholder="Organization Name *" required />
+
+  <input type="text" name="orgRegNo" placeholder="Organization Registration No" />
+
+  <label>Organization Registration Date</label>
+  <input type="date" name="orgRegDate" />
+
+  <input type="text" name="reg80GNo" placeholder="80G Registration No" />
+  <label>80G Registration Date</label>
+  <input type="date" name="reg80GDate" />
+
+  <input type="text" name="reg12ANo" placeholder="12A Registration No" />
+  <label>12A Registration Date</label>
+  <input type="date" name="reg12ADate" />
+
+  <hr />
+
+  <h2>Contact Details</h2>
+
+  <input type="text" name="primaryMobile" placeholder="Primary Mobile Number *" required />
+
+  <input type="text" name="alternateMobile" placeholder="Alternate Mobile Number" />
+
+  <input type="text" name="landline" placeholder="Landline Number" />
+
+  <input type="email" name="email" placeholder="Email ID" />
+
+  <input type="text" name="website" placeholder="Website" />
+
+  <hr />
+
+  <h2>Member Details</h2>
+
+  <input type="text" name="firstName" placeholder="First Name *" required />
+
+  <input type="text" name="lastName" placeholder="Last Name *" required />
+
+  <input type="text" name="memberPAN" placeholder="Member PAN Number *" required />
+
+  <input type="text" name="aadhaar" placeholder="Aadhaar Number (Optional)" />
+
+  <hr />
+
+  <h2>Membership Details</h2>
+
+  <label>Registration Date *</label>
+  <input type="date" name="registrationDate" required />
+
+  <label>Membership Start Date *</label>
+  <input type="date" name="startDate" required />
+
+  <label>Membership End Date</label>
+  <input type="date" name="endDate" />
+
+  <hr />
+
+  <h2>Assets</h2>
+
+  <label>Organization Logo</label>
+  <input type="file" name="logo" accept="image/*" />
+
+  <label>Authorized Signature</label>
+  <input type="file" name="signature" accept="image/*" />
+
+  <button type="submit">Save Member</button>
+
+</form>
+
+</body>
+</html>

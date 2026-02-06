@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+
+<div class="topbar">
+<h2>Admin Panel</h2>
+<a href="/logout" class="btn small">Logout</a>
+</div>
+
+
+<div class="card">
+<h3>Search Members</h3>
+
+
+<input id="membershipId" placeholder="Membership ID" />
+<input id="organizationName" placeholder="Organization Name" />
+<input id="primaryMobile" placeholder="Mobile Number" />
+<input id="email" placeholder="Email" />
+
+
+<select id="status">
+<option value="">All Status</option>
+<option>Active</option>
+<option>In Progress</option>
+<option>Expired</option>
+</select>
+
+
+<button onclick="searchMembers()">Search</button>
+<a href="/member-form.html" class="btn secondary">➕ Add Member</a>
+</div>
+
+
+<div class="card">
+<h3>Results</h3>
+<div id="results"></div>
+</div>
+
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeModal()">&times;</span>
+<div id="modalBody"></div>
+</div>
+</div>
+
+
+<script src="dashboard.js"></script>
+</body>
+</html>
