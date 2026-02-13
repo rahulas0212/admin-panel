@@ -7,9 +7,7 @@ const fs = require("fs");
 
 const app = express();
 
-/* ===============================
-   BASIC MIDDLEWARE
-================================ */
+/* ---------------- MIDDLEWARE ---------------- */
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -17,35 +15,26 @@ app.use(
   session({
     secret: "admin-secret-key",
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 30 } // 30 days login
   })
 );
 
-/* ===============================
-   STATIC FILES
-================================ */
+/* ---------------- STATIC ---------------- */
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-/* ===============================
-   ADMIN LOGIN (SINGLE ADMIN)
-================================ */
+/* ---------------- HOMEPAGE ---------------- */
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+/* ---------------- ADMIN LOGIN ---------------- */
 const ADMIN_USER = {
   username: "admin",
   password: bcrypt.hashSync("admin123", 10)
 };
 
-/* ===============================
-   AUTH MIDDLEWARE
-================================ */
-function requireLogin(req, res, next) {
-  if (req.session.loggedIn) next();
-  else res.redirect("/");
-}
-
-/* ===============================
-   LOGIN ROUTES
-================================ */
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -54,21 +43,26 @@ app.post("/login", (req, res) => {
     bcrypt.compareSync(password, ADMIN_USER.password)
   ) {
     req.session.loggedIn = true;
-    res.redirect("/dashboard.html");
-  } else {
-    res.status(401).send("Invalid username or password");
+    return res.redirect("/dashboard.html");
   }
+  res.send("Invalid username or password");
 });
 
 app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/");
-  });
+  req.session.destroy(() => res.redirect("/"));
 });
 
-/* ===============================
-   JSON DATABASE SETUP
-================================ */
+/* ---------------- AUTH PROTECTION ---------------- */
+function requireLogin(req, res, next) {
+  if (req.session.loggedIn) return next();
+  res.redirect("/");
+}
+
+app.get("/dashboard.html", requireLogin, (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+/* ---------------- JSON DATABASE ---------------- */
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "members.json");
 
@@ -83,12 +77,10 @@ function saveMembers(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-/* ===============================
-   MEMBERSHIP HELPERS
-================================ */
+/* ---------------- MEMBERSHIP HELPERS ---------------- */
 function generateMembershipId(members) {
   const year = new Date().getFullYear();
-  const count = members.filter(m => m.membershipId.includes(year)).length + 1;
+  const count = members.length + 1;
   return `MEM-${year}-${String(count).padStart(4, "0")}`;
 }
 
@@ -102,9 +94,7 @@ function calculateStatus(start, end) {
   return "Expired";
 }
 
-/* ===============================
-   FILE UPLOAD (LOGO & SIGN)
-================================ */
+/* ---------------- FILE UPLOAD ---------------- */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir =
@@ -121,9 +111,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-/* ===============================
-   ADD MEMBER
-================================ */
+/* ---------------- ADD MEMBER ---------------- */
 app.post(
   "/api/members",
   requireLogin,
@@ -135,48 +123,34 @@ app.post(
     const members = readMembers();
 
     const membershipId = generateMembershipId(members);
-    const status = calculateStatus(
-      req.body.startDate,
-      req.body.endDate
-    );
+    const status = calculateStatus(req.body.startDate, req.body.endDate);
 
     const member = {
       membershipId,
       status,
-      createdAt: new Date().toISOString(),
-
       organization: {
-        name: req.body.orgName || "",
-        regNo: req.body.orgRegNo || "",
-        regDate: req.body.orgRegDate || "",
-        reg80GNo: req.body.reg80GNo || "",
-        reg80GDate: req.body.reg80GDate || "",
-        reg12ANo: req.body.reg12ANo || "",
-        reg12ADate: req.body.reg12ADate || ""
+        name: req.body.orgName,
+        regNo: req.body.orgRegNo,
+        reg80GNo: req.body.reg80GNo,
+        reg12ANo: req.body.reg12ANo
       },
-
       contact: {
-        mobile: req.body.primaryMobile || "",
-        email: req.body.email || ""
+        mobile: req.body.primaryMobile,
+        email: req.body.email
       },
-
       member: {
-        firstName: req.body.firstName || "",
-        lastName: req.body.lastName || "",
-        pan: req.body.memberPAN || ""
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        pan: req.body.memberPAN
       },
-
       membership: {
         registrationDate: req.body.registrationDate,
         startDate: req.body.startDate,
         endDate: req.body.endDate
       },
-
       assets: {
         logo: req.files.logo ? "/" + req.files.logo[0].path : "",
-        signature: req.files.signature
-          ? "/" + req.files.signature[0].path
-          : ""
+        signature: req.files.signature ? "/" + req.files.signature[0].path : ""
       }
     };
 
@@ -187,18 +161,13 @@ app.post(
   }
 );
 
-/* ===============================
-   SEARCH MEMBERS
-================================ */
+/* ---------------- GET MEMBERS ---------------- */
 app.get("/api/members", requireLogin, (req, res) => {
-  const members = readMembers();
-  res.json(members);
+  res.json(readMembers());
 });
 
-/* ===============================
-   SERVER START
-================================ */
+/* ---------------- SERVER ---------------- */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Admin panel running on port " + PORT);
+  console.log("Server running on port " + PORT);
 });
