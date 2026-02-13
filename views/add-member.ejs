@@ -1,83 +1,196 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Add Member</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+
+<style>
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f3f4f6;
+  margin:0;
+}
+
+.header{
+  background:#2563eb;
+  color:white;
+  padding:14px;
+  text-align:center;
+  font-size:20px;
+  font-weight:bold;
+}
+
+.container{
+  padding:14px;
+}
+
+.card{
+  background:white;
+  padding:14px;
+  border-radius:10px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  margin-bottom:18px;
+}
+
+input, select{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  margin-bottom:14px;
+  border:1px solid #ccc;
+  border-radius:6px;
+  font-size:14px;
+}
+
+button{
+  width:100%;
+  background:#16a34a;
+  color:white;
+  border:none;
+  padding:12px;
+  border-radius:8px;
+  font-size:16px;
+  font-weight:bold;
+}
+
+.memberCard{
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:12px;
+  margin-bottom:12px;
+  background:#fafafa;
+}
+
+.label{
+  font-size:12px;
+  color:#555;
+}
+
+.value{
+  font-size:15px;
+  font-weight:bold;
+  margin-bottom:6px;
+}
+</style>
 </head>
+
 <body>
 
-<form method="POST" action="/add-member" enctype="multipart/form-data" class="card">
+<div class="header">Membership Admin</div>
 
-  <h2>Organization Details</h2>
+<div class="container">
 
-  <input type="text" name="organizationName" placeholder="Organization Name *" required />
+<!-- ADD MEMBER -->
+<div class="card">
+<h3>Add Member</h3>
 
-  <input type="text" name="orgRegNo" placeholder="Organization Registration No" />
+<form id="memberForm" enctype="multipart/form-data">
 
-  <label>Organization Registration Date</label>
-  <input type="date" name="orgRegDate" />
+<label>Organization Name*</label>
+<input name="orgName" required>
 
-  <input type="text" name="reg80GNo" placeholder="80G Registration No" />
-  <label>80G Registration Date</label>
-  <input type="date" name="reg80GDate" />
+<label>Organization Registration No</label>
+<input name="orgRegNo">
 
-  <input type="text" name="reg12ANo" placeholder="12A Registration No" />
-  <label>12A Registration Date</label>
-  <input type="date" name="reg12ADate" />
+<label>80G Number</label>
+<input name="reg80GNo">
 
-  <hr />
+<label>12A Number</label>
+<input name="reg12ANo">
 
-  <h2>Contact Details</h2>
+<label>Primary Mobile*</label>
+<input name="primaryMobile" pattern="[0-9]{10}" required>
 
-  <input type="text" name="primaryMobile" placeholder="Primary Mobile Number *" required />
+<label>Email</label>
+<input name="email" type="email">
 
-  <input type="text" name="alternateMobile" placeholder="Alternate Mobile Number" />
+<label>First Name*</label>
+<input name="firstName" required>
 
-  <input type="text" name="landline" placeholder="Landline Number" />
+<label>Last Name*</label>
+<input name="lastName" required>
 
-  <input type="email" name="email" placeholder="Email ID" />
+<label>Member PAN*</label>
+<input name="memberPAN" required>
 
-  <input type="text" name="website" placeholder="Website" />
+<label>Registration Date*</label>
+<input type="date" name="registrationDate" required>
 
-  <hr />
+<label>Membership Start Date*</label>
+<input type="date" name="startDate" required>
 
-  <h2>Member Details</h2>
+<label>Membership End Date</label>
+<input type="date" name="endDate">
 
-  <input type="text" name="firstName" placeholder="First Name *" required />
+<label>Upload Logo</label>
+<input type="file" name="logo" accept="image/*">
 
-  <input type="text" name="lastName" placeholder="Last Name *" required />
+<label>Upload Signature</label>
+<input type="file" name="signature" accept="image/*">
 
-  <input type="text" name="memberPAN" placeholder="Member PAN Number *" required />
-
-  <input type="text" name="aadhaar" placeholder="Aadhaar Number (Optional)" />
-
-  <hr />
-
-  <h2>Membership Details</h2>
-
-  <label>Registration Date *</label>
-  <input type="date" name="registrationDate" required />
-
-  <label>Membership Start Date *</label>
-  <input type="date" name="startDate" required />
-
-  <label>Membership End Date</label>
-  <input type="date" name="endDate" />
-
-  <hr />
-
-  <h2>Assets</h2>
-
-  <label>Organization Logo</label>
-  <input type="file" name="logo" accept="image/*" />
-
-  <label>Authorized Signature</label>
-  <input type="file" name="signature" accept="image/*" />
-
-  <button type="submit">Save Member</button>
+<button type="submit">Save Member</button>
 
 </form>
+</div>
+
+<!-- MEMBER LIST -->
+<div class="card">
+<h3>Members</h3>
+<div id="memberList">Loading...</div>
+</div>
+
+</div>
+
+<script>
+const form = document.getElementById("memberForm");
+
+form.addEventListener("submit", async function(e){
+  e.preventDefault();
+
+  const formData = new FormData(form);
+
+  const res = await fetch("/api/members", {
+    method:"POST",
+    body:formData
+  });
+
+  if(res.ok){
+    alert("Member Saved Successfully");
+    form.reset();
+    loadMembers();
+  }else{
+    alert("Error saving member");
+  }
+});
+
+async function loadMembers(){
+  const res = await fetch("/api/members");
+  const members = await res.json();
+
+  const list = document.getElementById("memberList");
+  list.innerHTML="";
+
+  members.reverse().forEach(m=>{
+    list.innerHTML += `
+      <div class="memberCard">
+        <div class="label">Organization</div>
+        <div class="value">${m.organization.name}</div>
+
+        <div class="label">Membership ID</div>
+        <div class="value">${m.membershipId}</div>
+
+        <div class="label">Status</div>
+        <div class="value">${m.status}</div>
+
+        <div class="label">Mobile</div>
+        <div class="value">${m.contact.mobile}</div>
+      </div>
+    `;
+  });
+}
+
+loadMembers();
+</script>
 
 </body>
 </html>
