@@ -1,0 +1,44 @@
+<h2>Member Profile</h2>
+
+<p><b>Name:</b> <%= member.firstName %> <%= member.lastName %></p>
+<p><b>Mobile:</b> <%= member.primaryMobile %></p>
+<p><b>PAN:</b> <%= member.memberPAN %></p>
+
+<h3>Renew Membership</h3>
+
+<form method="POST" action="/renew-membership/<%= member._id %>">
+    Start Date:
+    <input type="date" name="startDate" required><br><br>
+
+    Duration:
+    <select name="duration">
+        <option value="3">3 Months</option>
+        <option value="6">6 Months</option>
+        <option value="12" selected>12 Months</option>
+    </select><br><br>
+
+    <button type="submit">Renew</button>
+</form>
+
+<hr>
+
+<h3>Membership History</h3>
+
+<table border="1" cellpadding="6">
+<tr>
+<th>Start</th>
+<th>End</th>
+<th>Duration</th>
+<th>Status</th>
+</tr>
+
+<% memberships.forEach(m => { %>
+<tr>
+<td><%= m.startDate.toDateString() %></td>
+<td><%= m.endDate.toDateString() %></td>
+<td><%= m.duration %> months</td>
+<td><%= m.status %></td>
+</tr>
+<% }) %>
+
+</table>
