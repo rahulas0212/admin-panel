@@ -1,173 +1,264 @@
-const express = require("express");
-const session = require("express-session");
-const bcrypt = require("bcryptjs");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+// ===============================
+// COMPLETE ADMIN PANEL SERVER
+// ===============================
+
+const express = require('express');
+const mongoose = require('mongoose');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 
-/* ---------------- MIDDLEWARE ---------------- */
+// -------------------------------
+// DATABASE CONNECTION
+// -------------------------------
+
+mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => console.log('MongoDB Connected'))
+  .catch(err => console.log(err));
+
+// -------------------------------
+// MODELS
+// -------------------------------
+
+const Member = require('./models/Member');
+const Membership = require('./models/Membership');
+
+// -------------------------------
+// BASIC CONFIG
+// -------------------------------
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use(
-  session({
-    secret: "admin-secret-key",
+// -------------------------------
+// SESSION CONFIG
+// -------------------------------
+
+app.use(session({
+    secret: 'receipt-secret-key',
     resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 * 30 } // 30 days login
-  })
-);
+    saveUninitialized: false
+}));
 
-/* ---------------- STATIC ---------------- */
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// -------------------------------
+// FILE UPLOAD (LOGO + SIGNATURE)
+// -------------------------------
 
-/* ---------------- HOMEPAGE ---------------- */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        const uniqueName = Date.now() + '-' + file.originalname;
+        cb(null, uniqueName);
+    }
 });
 
-/* ---------------- ADMIN LOGIN ---------------- */
+const upload = multer({ storage: storage });
+
+// -------------------------------
+// ADMIN LOGIN (HARDCODED)
+// -------------------------------
+
 const ADMIN_USER = {
-  username: "admin",
-  password: bcrypt.hashSync("admin123", 10)
+    username: 'admin',
+    passwordHash: bcrypt.hashSync('admin123', 10)
 };
 
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
+function isLoggedIn(req, res, next) {
+    if (req.session.user) return next();
+    res.redirect('/login');
+}
 
-  if (
-    username === ADMIN_USER.username &&
-    bcrypt.compareSync(password, ADMIN_USER.password)
-  ) {
-    req.session.loggedIn = true;
-    return res.redirect("/dashboard.html");
-  }
-  res.send("Invalid username or password");
+// -------------------------------
+// ROUTES
+// -------------------------------
+
+app.get('/', (req, res) => {
+    res.redirect('/login');
 });
 
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => res.redirect("/"));
+// LOGIN PAGE
+app.get('/login', (req, res) => {
+    res.render('login', { error: null });
 });
 
-/* ---------------- AUTH PROTECTION ---------------- */
-function requireLogin(req, res, next) {
-  if (req.session.loggedIn) return next();
-  res.redirect("/");
-}
+// LOGIN POST
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
 
-app.get("/dashboard.html", requireLogin, (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+    if (username === ADMIN_USER.username && bcrypt.compareSync(password, ADMIN_USER.passwordHash)) {
+        req.session.user = username;
+        res.redirect('/dashboard');
+    } else {
+        res.render('login', { error: 'Invalid username or password' });
+    }
 });
 
-/* ---------------- JSON DATABASE ---------------- */
-const DATA_DIR = path.join(__dirname, "data");
-const DATA_FILE = path.join(DATA_DIR, "members.json");
-
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, "[]");
-
-function readMembers() {
-  return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
-}
-
-function saveMembers(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-/* ---------------- MEMBERSHIP HELPERS ---------------- */
-function generateMembershipId(members) {
-  const year = new Date().getFullYear();
-  const count = members.length + 1;
-  return `MEM-${year}-${String(count).padStart(4, "0")}`;
-}
-
-function calculateStatus(start, end) {
-  const today = new Date();
-  const s = new Date(start);
-  const e = end ? new Date(end) : null;
-
-  if (today < s) return "In Progress";
-  if (!e || today <= e) return "Active";
-  return "Expired";
-}
-
-/* ---------------- FILE UPLOAD ---------------- */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir =
-      file.fieldname === "logo"
-        ? "uploads/logos"
-        : "uploads/signatures";
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
+// LOGOUT
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/login');
+    });
 });
 
-const upload = multer({ storage });
+// -------------------------------
+// DASHBOARD PAGE
+// -------------------------------
 
-/* ---------------- ADD MEMBER ---------------- */
-app.post(
-  "/api/members",
-  requireLogin,
-  upload.fields([
-    { name: "logo", maxCount: 1 },
-    { name: "signature", maxCount: 1 }
-  ]),
-  (req, res) => {
-    const members = readMembers();
+app.get('/dashboard', isLoggedIn, (req, res) => {
+    res.render('dashboard');
+});
 
-    const membershipId = generateMembershipId(members);
-    const status = calculateStatus(req.body.startDate, req.body.endDate);
+// DASHBOARD DATA (STATS)
+app.get('/dashboard-data', isLoggedIn, async (req, res) => {
+    const memberships = await Membership.find();
 
-    const member = {
-      membershipId,
-      status,
-      organization: {
-        name: req.body.orgName,
-        regNo: req.body.orgRegNo,
-        reg80GNo: req.body.reg80GNo,
-        reg12ANo: req.body.reg12ANo
-      },
-      contact: {
-        mobile: req.body.primaryMobile,
-        email: req.body.email
-      },
-      member: {
+    let active = 0;
+    let expired = 0;
+    let inprogress = 0;
+
+    const today = new Date();
+
+    memberships.forEach(m => {
+        if (today < m.startDate) inprogress++;
+        else if (today >= m.startDate && today <= m.endDate) active++;
+        else expired++;
+    });
+
+    const totalMembers = await Member.countDocuments();
+
+    res.json({ totalMembers, active, expired, inprogress });
+});
+
+// -------------------------------
+// ADD MEMBER PAGE
+// -------------------------------
+
+app.get('/add-member', isLoggedIn, (req, res) => {
+    res.render('add-member');
+});
+
+// ADD MEMBER SAVE
+app.post('/add-member', isLoggedIn, upload.fields([{ name: 'logo' }, { name: 'signature' }]), async (req, res) => {
+
+    const newMember = new Member({
+        organizationName: req.body.organizationName,
         firstName: req.body.firstName,
         lastName: req.body.lastName,
-        pan: req.body.memberPAN
-      },
-      membership: {
-        registrationDate: req.body.registrationDate,
-        startDate: req.body.startDate,
-        endDate: req.body.endDate
-      },
-      assets: {
-        logo: req.files.logo ? "/" + req.files.logo[0].path : "",
-        signature: req.files.signature ? "/" + req.files.signature[0].path : ""
-      }
-    };
+        primaryMobile: req.body.primaryMobile,
+        email: req.body.email,
+        memberPAN: req.body.memberPAN,
+        addressLine1: req.body.addressLine1,
+        city: req.body.city,
+        state: req.body.state,
+        pinCode: req.body.pinCode,
+        logo: req.files['logo'] ? req.files['logo'][0].filename : null,
+        signature: req.files['signature'] ? req.files['signature'][0].filename : null
+    });
 
-    members.push(member);
-    saveMembers(members);
+    await newMember.save();
 
-    res.json({ success: true });
-  }
-);
+    // CREATE FIRST MEMBERSHIP
+    const duration = parseInt(req.body.membershipDuration);
+    const startDate = new Date(req.body.membershipStartDate);
 
-/* ---------------- GET MEMBERS ---------------- */
-app.get("/api/members", requireLogin, (req, res) => {
-  res.json(readMembers());
+    let endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + duration);
+
+    await Membership.create({
+        memberId: newMember._id,
+        startDate,
+        endDate,
+        duration
+    });
+
+    res.redirect('/dashboard');
 });
 
-/* ---------------- SERVER ---------------- */
+// -------------------------------
+// MEMBER PROFILE
+// -------------------------------
+
+app.get('/member-profile/:id', isLoggedIn, async (req, res) => {
+
+    const member = await Member.findById(req.params.id);
+    const memberships = await Membership.find({ memberId: req.params.id }).sort({ startDate: -1 });
+
+    const today = new Date();
+
+    const membershipsWithStatus = memberships.map(m => {
+        let status = 'Expired';
+
+        if (today < m.startDate) status = 'In Progress';
+        else if (today >= m.startDate && today <= m.endDate) status = 'Active';
+
+        return { ...m.toObject(), status };
+    });
+
+    res.render('member-profile', {
+        member,
+        memberships: membershipsWithStatus
+    });
+});
+
+// -------------------------------
+// RENEW MEMBERSHIP
+// -------------------------------
+
+app.post('/renew-membership/:id', isLoggedIn, async (req, res) => {
+
+    const memberId = req.params.id;
+    const duration = parseInt(req.body.duration);
+    const startDate = new Date(req.body.startDate);
+
+    let endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + duration);
+
+    await Membership.create({
+        memberId,
+        startDate,
+        endDate,
+        duration
+    });
+
+    res.redirect('/member-profile/' + memberId);
+});
+
+// -------------------------------
+// SEARCH MEMBERS
+// -------------------------------
+
+app.get('/search-member', isLoggedIn, async (req, res) => {
+    const keyword = req.query.keyword || '';
+
+    const members = await Member.find({
+        $or: [
+            { firstName: { $regex: keyword, $options: 'i' } },
+            { lastName: { $regex: keyword, $options: 'i' } },
+            { primaryMobile: { $regex: keyword, $options: 'i' } }
+        ]
+    });
+
+    res.render('search-member', { members, keyword });
+});
+
+// -------------------------------
+// SERVER START
+// -------------------------------
+
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+    console.log('Admin panel running on port ' + PORT);
 });
